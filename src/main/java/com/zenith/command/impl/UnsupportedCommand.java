@@ -32,6 +32,7 @@ public class UnsupportedCommand extends Command {
             .usageLines(
                 "whitelist on/off",
                 "spectatorWhitelist on/off",
+                "clientAuth online/offline",
                 "allowOfflinePlayers on/off",
                 "auth type offline",
                 "auth offlineUsername <username>"
@@ -53,6 +54,15 @@ public class UnsupportedCommand extends Command {
                 CONFIG.server.spectator.whitelistEnabled = getToggle(c, "toggle");
                 c.getSource().getEmbed()
                     .title("Spectator Whitelist " + toggleStrCaps(CONFIG.server.spectator.whitelistEnabled));
+                return OK;
+            })))
+            .then(literal("clientAuth").then(argument("mode", enumStrings("online", "offline")).executes(c -> {
+                String mode = getString(c, "mode");
+                CONFIG.server.verifyUsers = "online".equals(mode);
+                c.getSource().getEmbed()
+                    .title("Client Authentication Set")
+                    .description("Players -> proxy authentication is now in " + mode + " mode.\n"
+                                 + "This is independent of the proxy -> server authentication type (`auth type`).");
                 return OK;
             })))
             .then(literal("allowOfflinePlayers").then(argument("toggle", toggle()).executes(c -> {
@@ -84,6 +94,7 @@ public class UnsupportedCommand extends Command {
         builder
             .addField("Whitelist", toggleStr(CONFIG.server.extra.whitelist.enable))
             .addField("Spectator Whitelist", toggleStr(CONFIG.server.spectator.whitelistEnabled))
+            .addField("Client Auth (Player -> Proxy)", CONFIG.server.verifyUsers ? "ONLINE" : "OFFLINE")
             .addField("Allow Offline Players", toggleStr(!CONFIG.server.verifyUsers))
             .addField("Offline Authentication", toggleStr(CONFIG.authentication.accountType == OFFLINE))
             .addField("Offline Username", escape(CONFIG.authentication.username))

@@ -9,9 +9,9 @@ import com.zenith.util.config.Config;
 
 import javax.crypto.SecretKey;
 import java.util.Optional;
-import java.util.UUID;
 
 import static com.zenith.Globals.CONFIG;
+import static com.zenith.Globals.SERVER_LOG;
 
 public class UserAuthTask implements Runnable {
     private final ServerSession session;
@@ -25,22 +25,15 @@ public class UserAuthTask implements Runnable {
     @Override
     public void run() {
         GameProfile profile;
-        String expectedUsername = CONFIG.authentication.username;
-        if (CONFIG.authentication.accountType == Config.Authentication.AccountType.OFFLINE) {
-            if (!session.getUsername().equals(expectedUsername)) {
-                this.session.disconnect("Failed to verify username.");
-                System.out.println("[ZenithProxy] 登入失敗：名稱不匹配！預期: " + expectedUsername + "，收到: " + session.getUsername());
+        // Player -> proxy authentication is configured independently from
+        // proxy -> upstream server authentication (CONFIG.authentication.accountType).
+        if (CONFIG.server.verifyUsers) {
+            // Online mode: the client must complete a Mojang session verification.
+            // Offline/cracked clients cannot pass this check.
+            if (this.key == null) {
+                this.session.disconnect("No encryption key!");
                 return;
             }
-
-            UUID offlineUUID = Config.Authentication.generateOfflineUUID(session.getUsername());
-            String displayName = session.getUsername();
-
-            profile = new GameProfile(offlineUUID, displayName);
-
-            System.out.println("[ZenithProxy] 離線模式登入成功 - Username: " + displayName);
-        }  
-        else if (this.key != null) {
             final Optional<GameProfile> response = SessionServerApi.INSTANCE.hasJoined(
                 session.getUsername(),
                 SessionServerApi.INSTANCE.getSharedSecret(
@@ -52,18 +45,13 @@ public class UserAuthTask implements Runnable {
                 return;
             }
             profile = response.get();
-        } 
-        else {
-            if (CONFIG.server.verifyUsers) {
-                this.session.disconnect("No encryption key!");
-                return;
-            }
-
-            final var uuid = session.getLoginProfileUUID() == session.getDefaultUUID()
-                ? UUID.nameUUIDFromBytes(("OfflinePlayer:" + session.getUsername()).getBytes())
-                : session.getLoginProfileUUID();
-
-            profile = new GameProfile(uuid, session.getUsername());
+        } else {
+            // Offline mode: accept any username. Access is controlled by the
+            // whitelist/blacklist in SLoginFinishedOutgoingHandler.
+            profile = new GameProfile(
+                Config.Authentication.generateOfflineUUID(session.getUsername()),
+                session.getUsername());
+            SERVER_LOG.info("Offline client authenticated: {} [{}]", profile.getName(), profile.getId());
         }
         session.getProfileCache().setProfile(profile);
 

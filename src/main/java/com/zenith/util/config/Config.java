@@ -840,6 +840,9 @@ public final class Config {
         public final Extra extra = new Extra();
         public final Ping ping = new Ping();
         public final ServerViaVersion viaversion = new ServerViaVersion();
+        // Player -> proxy authentication mode, independent of authentication.accountType (proxy -> upstream server).
+        // true  = online mode: clients must pass Mojang session verification
+        // false = offline mode: any username is accepted, access is still controlled by the whitelist/blacklist
         public boolean verifyUsers = true;
         public boolean enforceMatchingConnectingAddress = false;
         public boolean acceptTransfers = true;
